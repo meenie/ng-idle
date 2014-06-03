@@ -1,4 +1,3 @@
-
 (function (window, angular, undefined) {
     'use strict';    
 
@@ -87,6 +86,7 @@
             warningDuration: 30, // in seconds (default is 30sec)
             autoResume: true, // lets events automatically resume (unsets idle state/resets warning)
             events: 'mousemove keydown DOMMouseScroll mousewheel mousedown touchstart',
+            includeLocalIframes: false,
             keepalive: true
         };
 
@@ -104,6 +104,10 @@
         	if (seconds < 0) throw new Error("warning must be a value in seconds, greatner than 0.");
 
         	options.warningDuration = seconds;
+        };
+
+        this.includeLocalIframes = function(value) {
+            options.includeLocalIframes = value === true;
         };
 
         this.autoResume = function (value) {
@@ -168,6 +172,9 @@
                 idling: function() {
                 	return state.idling;
                 },
+                setDocumentEvents: function(document) {
+                    document.find('body').on(options.events, interrupt);
+                },
                 watch: function() {
                 	$timeout.cancel(state.idle);
                 	$timeout.cancel(state.warning);
@@ -192,7 +199,7 @@
             	if (state.running && options.autoResume) svc.watch();
             };
 
-            $document.find('body').on(options.events, interrupt);
+            svc.setDocumentEvents($document);
 
             return svc;
         };
@@ -202,6 +209,22 @@
     angular.module('ngIdle.idle', [])
         .provider('$idle', $IdleProvider);
 
+    angular.module('ngIdle.ngIdleWatchIframe', ['ngIdle.idle'])
+        .directive('ngIdleWatchIframe', ['$idle', function($idle) {
+            return {
+                restrict: 'A',
+                link: function(scope, elem) {
+                    elem.on('load', function() {
+                        var contentWindow = elem.get(0).contentWindow;
+                        if (angular.equals(contentWindow, {})) {
+                            throw new Error('Iframe must be on the same domain as the parent document.');
+                        }
+
+                        $idle.setDocumentEvents(angular.element(contentWindow.document));
+                    });
+                }
+            }
+        }]);
     angular.module('ngIdle.ngIdleCountdown', [])
         .directive('ngIdleCountdown', function() {
             return {
@@ -225,6 +248,6 @@
             };
         });
 
-    angular.module('ngIdle', ['ngIdle.keepalive', 'ngIdle.idle', 'ngIdle.ngIdleCountdown']);
+    angular.module('ngIdle', ['ngIdle.keepalive', 'ngIdle.idle', 'ngIdle.ngIdleCountdown', 'ngIdle.ngIdleWatchIframe']);
     
 })(window, window.angular);
