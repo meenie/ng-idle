@@ -32,9 +32,9 @@
 
 
     		function handleResponse(data, status, onetimeonly) {
-    			$rootScope.$broadcast('$keepaliveResponse', data, status);
+                if (!onetimeonly) schedulePing();
 
-    			if (!onetimeonly) schedulePing();
+    			$rootScope.$broadcast('$keepaliveResponse', data, status);
     		}
 
     		function schedulePing() {
